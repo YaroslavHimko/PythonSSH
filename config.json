@@ -1,6 +1,6 @@
 {
   "username" : "yaroslav",
-  "password" : "Pillshere12",
+  "password" : "password",
   "ips": ["127.0.0.1", "127.0.0.2"],
   "port": 2222
 }
