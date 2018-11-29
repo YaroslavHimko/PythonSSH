@@ -1,5 +1,9 @@
 import paramiko
 import json
+import logging
+
+
+logging.basicConfig(filename="host_actions.log", level=logging.INFO, filemode="w")
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -27,7 +31,7 @@ class Host(object):
             line.strip
 
             if "id_rsa" in line:
-                print("Key exists for {}".format(self.username))
+                logging.info("SSH key already exists for {}".format(self.username))
                 return True
             else:
                 return False
@@ -36,7 +40,7 @@ class Host(object):
         """
         Generates ssh key for a host machine.
         """
-        print("Generating key for {}".format(self.username))
+        logging.info("Generating key for {}".format(self.username))
         ssh.exec_command('ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -P ""')
         ssh.exec_command("chmod 700 ~/.ssh | chmod 600 ~/.ssh/id_rsa ")
 
@@ -44,7 +48,7 @@ class Host(object):
         """
         Removes ssh key for a host machine.
         """
-        print("Removing key for {}".format(self.username))
+        logging.info("Removing key for {}".format(self.username))
         ssh.exec_command("rm -f ~/.ssh/id_rsa")
         ssh.exec_command("rm -f ~/.ssh/id_rsa.pub")
 
@@ -58,7 +62,7 @@ class Host(object):
         """
         Reboots host machine
         """
-        print("Rebooting host {}".format(self.ip))
+        logging.info("Rebooting host {}".format(self.ip))
         ssh.exec_command("reboot")
 
 
@@ -70,7 +74,7 @@ def main():
             host.connect_to_host()
             if not host.key_present():
                 host.generate_key()
-            host.reboot()
+            ###host.reboot()
 
     except paramiko.SSHException:
         print("Connection Failed")
