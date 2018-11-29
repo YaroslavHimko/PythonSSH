@@ -91,15 +91,19 @@ def main():
         config = file_opener("config.json")
         for host_machine in config["Host"]:
             host = Host(host_machine)
-            if host.ping():
-                host.connect_to_host()
-                if not host.key_present():
-                    host.generate_key()
-                    ###host.reboot()
+            try:
+                if host.ping():
+                    host.connect_to_host()
+                    if not host.key_present():
+                        host.generate_key()
+                        ###host.reboot()
+            except paramiko.AuthenticationException:
+                logging.error("Authentication failed")
+            except paramiko.SSHException:
+                logging.error("Unable to establish SSH connection")
+    except FileNotFoundError:
+        logging.error("Config file was not found")
 
-
-    except paramiko.SSHException:
-        print("Connection Failed")
 
 
 if __name__ == '__main__':
