@@ -1,7 +1,9 @@
 import paramiko
 import json
 import logging
-
+import os
+import threading
+from platform import system
 
 logging.basicConfig(filename="host_actions.log", level=logging.INFO, filemode="w")
 
@@ -10,6 +12,9 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 
 def file_opener(config):
+    """
+    Gets config file path as a parameter and returns JSON file content
+    """
     with open(config) as f:
         data = json.load(f)
         return data
@@ -24,7 +29,8 @@ class Host(object):
 
     def key_present(self):
         """
-        Returns True if ssh key already exists, False if ssh key was not found.
+        Returns True if ssh key already exists.
+        False if ssh key was not found.
         """
         stdin, stdout, stderr = ssh.exec_command("ls ~/.ssh")
         for line in stdout.readlines():
@@ -60,10 +66,24 @@ class Host(object):
 
     def reboot(self):
         """
-        Reboots host machine
+        Reboots host machine.
         """
         logging.info("Rebooting host {}".format(self.ip))
         ssh.exec_command("reboot")
+
+    def ping(self):
+        """
+        Returns True if ping to a host was successful (returned response 0).
+        Else returns False.
+        """
+        parameter = '-n' if system().lower() == 'windows' else '-c'
+        response = os.system("ping {} 1 {}".format(parameter, self.ip))
+        if response == 0:
+            logging.info("Successful ping to a {}".format(self.ip))
+            return True
+        else:
+            logging.info("Ping failed for a {}".format(self.ip))
+            return False
 
 
 def main():
@@ -71,10 +91,12 @@ def main():
         config = file_opener("config.json")
         for host_machine in config["Host"]:
             host = Host(host_machine)
-            host.connect_to_host()
-            if not host.key_present():
-                host.generate_key()
-            ###host.reboot()
+            if host.ping():
+                host.connect_to_host()
+                if not host.key_present():
+                    host.generate_key()
+                    ###host.reboot()
+
 
     except paramiko.SSHException:
         print("Connection Failed")
