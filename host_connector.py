@@ -2,7 +2,6 @@ import paramiko
 import json
 import logging
 import os
-import threading
 from platform import system
 
 logging.basicConfig(filename="host_actions.log", level=logging.INFO, filemode="w")
@@ -37,9 +36,10 @@ class Host(object):
             line.strip
 
             if "id_rsa" in line:
-                logging.info("SSH key already exists for {}".format(self.username))
+                logging.info("id_rsa already exists for {}".format(self.username))
                 return True
             else:
+                logging.info("id_rsa doesn't exist for {}".format(self.username))
                 return False
 
     def generate_key(self):
@@ -96,14 +96,13 @@ def main():
                     host.connect_to_host()
                     if not host.key_present():
                         host.generate_key()
-                        ###host.reboot()
+                        host.reboot()
             except paramiko.AuthenticationException:
                 logging.error("Authentication failed")
             except paramiko.SSHException:
-                logging.error("Unable to establish SSH connection")
+                logging.error("Unable to establish connection")
     except FileNotFoundError:
         logging.error("Config file was not found")
-
 
 
 if __name__ == '__main__':
