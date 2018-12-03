@@ -2,8 +2,8 @@ import paramiko
 import json
 import logging
 import os
+import sys
 from platform import system
-import time
 
 logging.basicConfig(filename="host_actions.log", level=logging.INFO, filemode="w")
 
@@ -89,13 +89,27 @@ class Host(object):
             return False
 
     def reboot_and_wait(self):
+        """
+        Reboots host and waits until ping is OK
+        """
         parameter = '-n' if system().lower() == 'windows' else '-c'
-        response = os.system("ping {} 1 {}".format(parameter, self.ip))
         self._ssh.exec_command("reboot")
-        while response != 0:
+        response = os.system("ping {} 1 {}".format(parameter, self.ip))
+        while response != os.system("ping {} 1 {}".format(parameter, self.ip)):
             response = os.system("ping {} 1 {}".format(parameter, self.ip))
-            time.sleep(5)
-            print("pinged")
+
+    def execute_command(self):
+        """
+        Executes command from user input
+        """
+        user_input = ""
+        self._ssh.exec_command("{}".format(user_input))
+        while user_input != 'q':
+            user_input = input("Enter command to execute.\nEnter 'q' to exit.\n")
+            stdin, stdout, stderr = self._ssh.exec_command("{}".format(user_input))
+            for line in stdout.readlines():
+                line.strip
+                print(line)
 
 
 def main():
@@ -104,11 +118,10 @@ def main():
         for host_machine in config["Host"]:
             host = Host(host_machine)
             host.connect_to_host()
-            print(host.check_connection())
             try:
+                host.execute_command()
                 if host.ping():
                     if not host.key_present():
-                        print(host.check_connection())
                         host.generate_key()
             except paramiko.AuthenticationException:
                 logging.error("Authentication failed")
