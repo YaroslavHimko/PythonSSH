@@ -3,11 +3,9 @@ import json
 import logging
 import os
 from platform import system
+import time
 
 logging.basicConfig(filename="host_actions.log", level=logging.INFO, filemode="w")
-
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 
 def file_opener(config):
@@ -25,13 +23,15 @@ class Host(object):
         self.port = host_machine["port"]
         self.username = host_machine["username"]
         self.password = host_machine["password"]
+        self._ssh = paramiko.SSHClient()
+        self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     def key_present(self):
         """
         Returns True if ssh key already exists.
         False if ssh key was not found.
         """
-        stdin, stdout, stderr = ssh.exec_command("ls ~/.ssh")
+        stdin, stdout, stderr = self._ssh.exec_command("ls ~/.ssh")
         for line in stdout.readlines():
             line.strip
 
@@ -47,29 +47,32 @@ class Host(object):
         Generates ssh key for a host machine.
         """
         logging.info("Generating key for {}".format(self.username))
-        ssh.exec_command('ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -P ""')
-        ssh.exec_command("chmod 700 ~/.ssh | chmod 600 ~/.ssh/id_rsa ")
+        self._ssh.exec_command('ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -P ""')
+        self._ssh.exec_command("chmod 700 ~/.ssh | chmod 600 ~/.ssh/id_rsa ")
+
+    def check_connection(self):
+        return self._ssh.get_transport().is_active()
 
     def remove_key(self):
         """
         Removes ssh key for a host machine.
         """
         logging.info("Removing key for {}".format(self.username))
-        ssh.exec_command("rm -f ~/.ssh/id_rsa")
-        ssh.exec_command("rm -f ~/.ssh/id_rsa.pub")
+        self._ssh.exec_command("rm -f ~/.ssh/id_rsa")
+        self._ssh.exec_command("rm -f ~/.ssh/id_rsa.pub")
 
     def connect_to_host(self):
         """
         Establishes connection with a host machine.
         """
-        ssh.connect(hostname=self.ip, port=self.port, username=self.username, password=self.password)
+        self._ssh.connect(hostname=self.ip, port=self.port, username=self.username, password=self.password)
 
     def reboot(self):
         """
         Reboots host machine.
         """
         logging.info("Rebooting host {}".format(self.ip))
-        ssh.exec_command("reboot")
+        self._ssh.exec_command("reboot")
 
     def ping(self):
         """
@@ -85,18 +88,28 @@ class Host(object):
             logging.info("Ping failed for a {}".format(self.ip))
             return False
 
+    def reboot_and_wait(self):
+        parameter = '-n' if system().lower() == 'windows' else '-c'
+        response = os.system("ping {} 1 {}".format(parameter, self.ip))
+        self._ssh.exec_command("reboot")
+        while response != 0:
+            response = os.system("ping {} 1 {}".format(parameter, self.ip))
+            time.sleep(5)
+            print("pinged")
+
 
 def main():
     try:
         config = file_opener("config.json")
         for host_machine in config["Host"]:
             host = Host(host_machine)
+            host.connect_to_host()
+            print(host.check_connection())
             try:
                 if host.ping():
-                    host.connect_to_host()
                     if not host.key_present():
+                        print(host.check_connection())
                         host.generate_key()
-                        host.reboot()
             except paramiko.AuthenticationException:
                 logging.error("Authentication failed")
             except paramiko.SSHException:
