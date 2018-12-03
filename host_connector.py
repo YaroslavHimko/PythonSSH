@@ -2,8 +2,8 @@ import paramiko
 import json
 import logging
 import os
-import sys
 from platform import system
+import subprocess
 
 logging.basicConfig(filename="host_actions.log", level=logging.INFO, filemode="w")
 
@@ -98,18 +98,26 @@ class Host(object):
         while response != os.system("ping {} 1 {}".format(parameter, self.ip)):
             response = os.system("ping {} 1 {}".format(parameter, self.ip))
 
-    def execute_command(self):
+    def execute_remote_command(self):
         """
         Executes command from user input
         """
         user_input = ""
         self._ssh.exec_command("{}".format(user_input))
         while user_input != 'q':
-            user_input = input("Enter command to execute.\nEnter 'q' to exit.\n")
+            user_input = input("You are connected to: {}\nEnter command to execute or 'q' to exit.\n".format(self.ip))
             stdin, stdout, stderr = self._ssh.exec_command("{}".format(user_input))
             for line in stdout.readlines():
                 line.strip
                 print(line)
+
+    def execute_local_command(self):
+        user_input = ""
+        while user_input != 'q':
+            user_input = input("You are connected to: {}\nEnter command to execute or 'q' to exit.\n".format(self.ip))
+            p = subprocess.Popen('{}'.format(user_input), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            for line in p.stdout.readlines():
+                print(line.strip())
 
 
 def main():
@@ -119,10 +127,7 @@ def main():
             host = Host(host_machine)
             host.connect_to_host()
             try:
-                host.execute_command()
-                if host.ping():
-                    if not host.key_present():
-                        host.generate_key()
+                host.execute_local_command()
             except paramiko.AuthenticationException:
                 logging.error("Authentication failed")
             except paramiko.SSHException:
