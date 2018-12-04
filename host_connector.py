@@ -125,7 +125,7 @@ def main():
         config = file_opener("config.json")
         for host_machine in config["Host"]:
             host = Host(host_machine)
-            host.connect_to_host()
+            host.execute_local_command()
             try:
                 host.execute_local_command()
             except paramiko.AuthenticationException:
